@@ -289,3 +289,25 @@ if (msgInputBox) {
         }, 2000);
     });
 }
+// 🔽 PASTE THIS EXACTLY BELOW YOUR EXISTING CODE TO RECEIVE THE TYPING SIGNAL 🔽
+if (typeof socket !== 'undefined') {
+    socket.addEventListener('message', (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            
+            // If the message is a typing update, handle it cleanly here
+            if (data.type === "typing") {
+                const indicator = document.getElementById('typing-indicator');
+                if (indicator) {
+                    if (data.status === true) {
+                        indicator.innerText = `${data.sender} is typing...`;
+                    } else {
+                        indicator.innerText = ""; // Clear it when they stop
+                    }
+                }
+            }
+        } catch (error) {
+            // This safely catches any data format errors so your normal chat doesn't break
+        }
+    });
+}
