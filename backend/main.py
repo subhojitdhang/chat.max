@@ -340,7 +340,24 @@ async def websocket_endpoint(websocket: WebSocket, user_uid: str):
             parsed_msg = json.loads(data)
             
             if parsed_msg.get("type") == "ping" and not parsed_msg.get("text"):
-               continue
+                continue
+            
+            # --- SAFE & ERROR-FREE TYPING HANDLING ---
+            if parsed_msg.get("type") == "typing":
+                outbound_typing = json.dumps({
+                    "type": "typing",
+                    "status": parsed_msg.get("status"),
+                    "sender": parsed_msg.get("sender_name")
+                })
+                recipient_uid = parsed_msg.get('recipient_uid')
+                
+                # Use your existing, working manager functions!
+                if recipient_uid:
+                    await manager.send_private(user_uid, recipient_uid, outbound_typing)
+                else:
+                    await manager.broadcast_global(outbound_typing)
+                continue  # Stops here so typing signals aren't treated as normal text
+            # ------------------------------------------
             
             sender_name = parsed_msg.get('sender_name')
             text = parsed_msg.get('text')
