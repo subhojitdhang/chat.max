@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Network - Register Identity</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background: #0f172a; color: #e2e8f0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        
+        .signup-card { background: #1e293b; padding: 40px; border-radius: 12px; border: 1px solid #334155; width: 100%; max-width: 440px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        h2 { color: #38bdf8; text-align: center; margin-bottom: 25px; font-weight: 600; font-size: 1.6rem; }
+        
+        label { display: block; color: #94a3b8; font-size: 0.85rem; margin-bottom: 6px; }
+        input { width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; color: white; margin-bottom: 18px; border-radius: 6px; outline: none; font-size: 1rem; }
+        input:focus { border-color: #38bdf8; }
+        
+        button { width: 100%; padding: 12px; background: #38bdf8; color: #0f172a; border: none; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 1rem; transition: 0.2s; margin-top: 10px; }
+        button:hover { background: #0ea5e9; }
+        
+        .links { text-align: center; margin-top: 20px; }
+        .links a { color: #64748b; font-size: 0.9rem; text-decoration: none; }
+        .links a:hover { color: #38bdf8; }
+    </style>
+</head>
+<body>
+
+    <div class="signup-card">
+        <h2>Create Profile</h2>
+        <form id="signupForm">
+            <label>Secure Email Address</label>
+            <input type="email" id="email" placeholder="yourname@domain.com" required>
+            
+            <label>Unique System Username (No spaces allowed)</label>
+            <input type="text" id="username" placeholder="UniqueUsername" autocomplete="off" required>
+            
+            <label>Display Name (How friends see you)</label>
+            <input type="text" id="displayName" placeholder="John Doe" autocomplete="off" required>
+            
+            <label>Developer Registration Invite Code</label>
+            <input type="text" id="inviteCode" placeholder="Enter valid token code" autocomplete="off" required>
+            
+            <button type="submit">Register Account</button>
+        </form>
+        
+        <div class="links">
+            <a href="/login">Already have an account? Log in</a>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost" ? "http://127.0.0.1:8000" : window.location.origin;
+
+        document.getElementById("signupForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    
+    const email = document.getElementById("email").value.trim();
+    const username = document.getElementById("username").value.trim();
+    const displayName = document.getElementById("displayName").value.trim();
+    const inviteCode = document.getElementById("inviteCode").value.trim();
+
+    if (username.includes(" ")) {
+        alert("Spaces are strictly forbidden inside your unique username field!");
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/api/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+        email: email,
+        username: username,
+        display_name: displayName,
+        invite_code: inviteCode
+    })
+});
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+            alert("Account created successfully!");
+            window.location.href = "/login";
+        } else {
+            alert(data.detail || "Registration failed.");
+        }
+    } catch (err) {
+        alert("Could not connect to registration server database.");
+    }
+});
+    </script>
+</body>
+</html>

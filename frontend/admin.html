@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Admin Core</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background: #0f172a; color: #e2e8f0; padding: 40px; }
+        
+        .admin-container { max-width: 900px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #334155; padding-bottom: 15px; }
+        h1 { color: #f59e0b; font-size: 1.8rem; }
+        
+        .back-btn { padding: 10px 20px; background: #334155; color: white; text-decoration: none; font-weight: bold; border-radius: 6px; font-size: 0.9rem; transition: 0.2s; }
+        .back-btn:hover { background: #475569; }
+        
+        .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 30px; }
+        @media(max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+        
+        .card { background: #1e293b; padding: 25px; border-radius: 12px; border: 1px solid #334155; height: fit-content; }
+        h2 { color: #38bdf8; font-size: 1.2rem; margin-bottom: 20px; }
+        
+        label { display: block; color: #94a3b8; font-size: 0.85rem; margin-bottom: 6px; }
+        input { width: 100%; padding: 10px; background: #0f172a; border: 1px solid #334155; color: white; margin-bottom: 15px; border-radius: 6px; outline: none; font-size: 0.95rem; }
+        input:focus { border-color: #f59e0b; }
+        
+        button { width: 100%; padding: 12px; background: #f59e0b; color: #0f172a; border: none; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 1rem; transition: 0.2s; }
+        button:hover { background: #d97706; }
+        
+        .user-list { display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; }
+        .user-item { background: #0f172a; padding: 12px; border-radius: 6px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+        .user-info h4 { color: #e2e8f0; font-size: 0.95rem; }
+        .user-info p { color: #64748b; font-size: 0.8rem; margin-top: 2px; }
+        .admin-badge { background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="admin-container">
+        <div class="header">
+            <h1>System Administrator Dashboard</h1>
+            <a href="/index.html" class="back-btn">← Back to Workspace</a>
+        </div>
+        
+        <div class="grid">
+            <div class="card">
+                <h2>Mint Access Key</h2>
+                <form id="frmGenerateInvite">
+                    <label>Custom Invite Token Code</label>
+                    <input type="text" id="txtInviteCode" placeholder="BETA_CODE_2026" required autocomplete="off">
+                    
+                    <label>Maximum Allowed Signups</label>
+                    <input type="number" id="numUses" placeholder="5" min="1" required>
+                    
+                    <button type="submit">Generate Code</button>
+                </form>
+            </div>
+            
+            <div class="card">
+                <h2>Registered Profiles Database</h2>
+                <div class="user-list" id="divUserLog">
+                    <p style="color: #64748b; font-size: 0.9rem;">Querying database system...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost" ? "http://127.0.0.1:8000" : window.location.origin;
+        
+        const adminEmail = sessionStorage.getItem("user_email");
+        const isAdmin = sessionStorage.getItem("is_admin");
+
+        // Kick out non-admins immediately
+        if (!adminEmail || isAdmin !== "1") {
+            alert("Access Denied: Administrative signatures missing.");
+            window.location.href = "index.html";
+        }
+
+        // Fetch User base
+        async function fetchSystemUsers() {
+            const logContainer = document.getElementById("divUserLog");
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/users?email=${encodeURIComponent(adminEmail)}`);
+                if (res.ok) {
+                    const users = await res.json();
+                    logContainer.innerHTML = "";
+                    
+                    users.forEach(u => {
+                        const row = document.createElement("div");
+                        row.className = "user-item";
+                        row.innerHTML = `
+                            <div class="user-info">
+                                <h4>${u.display_name} (@${u.username})</h4>
+                                <p>Email: ${u.email} | ID: ${u.uid}</p>
+                            </div>
+                            ${u.email === 'subhojitgaming6842@gmail.com' ? '<span class="admin-badge">Owner</span>' : ''}
+                        `;
+                        logContainer.appendChild(row);
+                    });
+                } else {
+                    logContainer.innerHTML = `<p style="color: #ef4444;">Failed to extract data database tables.</p>`;
+                }
+            } catch (err) {
+                logContainer.innerHTML = `<p style="color: #ef4444;">Server offline.</p>`;
+            }
+        }
+
+        // Mint Codes Form submission
+        document.getElementById("frmGenerateInvite").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const codeInput = document.getElementById("txtInviteCode");
+            const usesInput = document.getElementById("numUses");
+
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/invite`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        admin_email: adminEmail,
+                        code: codeInput.value,
+                        uses: parseInt(usesInput.value)
+                    })
+                });
+                
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message);
+                    codeInput.value = "";
+                    usesInput.value = "";
+                } else {
+                    alert(data.detail);
+                }
+            } catch (err) {
+                alert("Core request execution timed out.");
+            }
+        });
+
+        // Load users on mount
+        fetchSystemUsers();
+    </script>
+</body>
+</html>

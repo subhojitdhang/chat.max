@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Network - Login</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background: #0f172a; color: #e2e8f0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        
+        .login-card { background: #1e293b; padding: 40px; border-radius: 12px; border: 1px solid #334155; width: 100%; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        h2 { color: #38bdf8; text-align: center; margin-bottom: 25px; font-weight: 600; font-size: 1.6rem; }
+        
+        .tabs { display: flex; margin-bottom: 25px; border-bottom: 2px solid #334155; }
+        .tab { flex: 1; padding: 10px; text-align: center; color: #64748b; cursor: pointer; font-weight: bold; font-size: 0.95rem; transition: 0.2s; }
+        .tab.active { color: #38bdf8; border-bottom: 2px solid #38bdf8; margin-bottom: -2px; }
+        
+        .form-panel { display: none; }
+        .form-panel.active { display: block; }
+        
+        label { display: block; color: #94a3b8; font-size: 0.85rem; margin-bottom: 8px; }
+        input { width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; color: white; margin-bottom: 20px; border-radius: 6px; outline: none; font-size: 1rem; }
+        input:focus { border-color: #38bdf8; }
+        
+        .otp-box { display: none; background: #1e293b; border-top: 1px dashed #334155; padding-top: 15px; margin-top: 5px; }
+        
+        button { width: 100%; padding: 12px; background: #38bdf8; color: #0f172a; border: none; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 1rem; transition: 0.2s; }
+        button:hover { background: #0ea5e9; }
+        
+        .links { text-align: center; margin-top: 20px; }
+        .links a { color: #64748b; font-size: 0.9rem; text-decoration: none; }
+        .links a:hover { color: #38bdf8; }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <h2>Secure Chat Core</h2>
+        
+        <div class="tabs">
+            <div id="tabAccount" class="tab active" onclick="switchTab('account')">Account Login</div>
+            <div id="tabGuest" class="tab" onclick="switchTab('guest')">Guest Entrance</div>
+        </div>
+
+        <div id="accountPanel" class="form-panel active">
+            <form id="requestOtpForm">
+                <label>Registered Email Address</label>
+                <input type="email" id="loginEmail" placeholder="name@domain.com" required>
+                <button type="submit" id="btnRequestOtp">Send Verification Code</button>
+            </form>
+
+            <form id="verifyOtpForm" class="otp-box">
+                <label>Verification Code (Check your server console terminal)</label>
+                <input type="text" id="otpCode" placeholder="Enter 6-digit Code" autocomplete="off" required>
+                <button type="submit">Verify & Authenticate</button>
+            </form>
+            
+            <div class="links">
+                <a href="signup.html">Request access signature (Register)</a>
+            </div>
+        </div>
+
+        <div id="guestPanel" class="form-panel">
+            <form id="guestLoginForm">
+                <label>Temporary Guest Username (No spaces allowed)</label>
+                <input type="text" id="guestUsername" placeholder="GuestUsername" autocomplete="off" required>
+                <button type="submit">Enter Space as Guest</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost" ? "http://127.0.0.1:8000" : window.location.origin;
+
+        function switchTab(type) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+            
+            if(type === 'account') {
+                document.getElementById('tabAccount').classList.add('active');
+                document.getElementById('accountPanel').classList.add('active');
+            } else {
+                document.getElementById('tabGuest').classList.add('active');
+                document.getElementById('guestPanel').classList.add('active');
+            }
+        }
+
+        // 1. Request OTP Flow
+        document.getElementById("requestOtpForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const email = document.getElementById("loginEmail").value.trim();
+            const btn = document.getElementById("btnRequestOtp");
+
+            try {
+                const res = await fetch(`${API_BASE}/api/login/request-otp`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email })
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    alert(data.message);
+                    document.getElementById("verifyOtpForm").style.display = "block";
+                    btn.innerText = "Resend Code";
+                } else {
+                    alert(data.detail);
+                }
+            } catch (err) {
+                alert("Could not connect to the backend server.");
+            }
+        });
+
+        // 2. Verify OTP and Complete Login
+        document.getElementById("verifyOtpForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const email = document.getElementById("loginEmail").value.trim();
+            const otpCode = document.getElementById("otpCode").value.trim();
+
+            try {
+                const res = await fetch(`${API_BASE}/api/login/verify-otp`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, otp_code: otpCode })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    sessionStorage.setItem("user_uid", data.user.uid);
+                    sessionStorage.setItem("user_name", data.user.username);
+                    sessionStorage.setItem("user_display", data.user.display_name);
+                    sessionStorage.setItem("user_email", data.user.email);
+                    sessionStorage.setItem("is_admin", data.user.is_admin);
+                    sessionStorage.setItem("is_guest", "0");
+                    
+                    if (data.user.is_admin === 1) {
+    window.location.href = "/admin";
+} else {
+    window.location.href = "/";
+}
+                } else {
+                    alert(data.detail);
+                }
+            } catch (err) {
+                alert("Verification request failed.");
+            }
+        });
+
+        // 3. Guest Entry Flow
+        document.getElementById("guestLoginForm").addEventListener("submit", (e) => {
+            e.preventDefault();
+            const username = document.getElementById("guestUsername").value.trim();
+            
+            if (username.includes(" ")) {
+                alert("Spaces are not allowed in guest usernames!");
+                return;
+            }
+            
+            // Guest data mapping (generate a random 8-digit style string for temporary UI compatibility)
+            const randomGuestUid = "G" + Math.floor(1000000 + Math.random() * 9000000);
+            
+            sessionStorage.setItem("user_uid", randomGuestUid);
+            sessionStorage.setItem("user_name", username);
+            sessionStorage.setItem("user_display", username + " (Guest)");
+            sessionStorage.setItem("user_email", "guest@temporary.net");
+            sessionStorage.setItem("is_admin", "0");
+            sessionStorage.setItem("is_guest", "1");
+            
+            // TO THIS:
+window.location.href = "/";
+        });
+    </script>
+</body>
+</html>
