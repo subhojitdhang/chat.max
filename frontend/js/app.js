@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnGlobalRoom = document.getElementById("btnGlobalRoom");
     const frmTransmitter = document.getElementById("frmTransmitter");
     const txtMessageInput = document.getElementById("txtMessageInput");
-    
+
     // File inputs
     const fileImageInput = document.getElementById("fileImageInput");
     const btnTriggerFile = document.getElementById("btnTriggerFile");
@@ -45,18 +45,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnRemoveAttachment = document.getElementById("btnRemoveAttachment");
 
     // State Variables
-    let activeChatType = "global"; 
+    let activeChatType = "global";
     let activeTargetUid = null;
     let stagedImageUrl = null;
 
     // Apply visibility parameters safely based on role type
-    //  THE FIX:
-if (isGuest === "1") {
-    if (friendActionPanel) friendActionPanel.style.display = "none";
-    if (lblFriendTitle) lblFriendTitle.style.display = "none";
-}
+    if (isGuest === "1") {
+        if (friendActionPanel) friendActionPanel.style.display = "none";
+        if (lblFriendTitle) lblFriendTitle.style.display = "none";
+    }
     
-    // CRITICAL FIX: Ensure string "1" or number 1 match correctly for admin dashboard button visibility
     if ((isAdmin === "1" || isAdmin == 1) && lnkAdminPanel) {
         lnkAdminPanel.style.display = "block";
     }
@@ -107,15 +105,18 @@ if (isGuest === "1") {
                     item.addEventListener("click", () => {
                         document.querySelectorAll(".channel-item").forEach(c => c.classList.remove("active"));
                         item.classList.add("active");
+     
                         activeChatType = "private";
                         activeTargetUid = f.uid;
-                        if (lblChatHeader) lblChatHeader.innerText = `🔒 Direct: ${f.display_name}`;
+                        if (lblChatHeader) lblChatHeader.innerText = `💬 Direct: ${f.display_name}`;
                         if (chatScrollArea) chatScrollArea.innerHTML = ""; 
                     });
                     friendContainer.appendChild(item);
                 });
             }
-        } catch (e) { console.error("Error setting up friend profiles", e); }
+        } catch (e) { 
+            console.error("Error setting up friend profiles", e);
+        }
     }
 
     if (btnAddFriend && txtFriendSearch) {
@@ -133,7 +134,9 @@ if (isGuest === "1") {
                 alert(data.message);
                 txtFriendSearch.value = "";
                 loadFriendSidebar();
-            } catch (err) { alert("Failed to communicate with friend system."); }
+            } catch (err) { 
+                alert("Failed to communicate with friend system."); 
+            }
         });
     }
 
@@ -150,7 +153,6 @@ if (isGuest === "1") {
 
     // --- SINGLE IMAGE HANDLING SUITE ---
     if (btnTriggerFile) btnTriggerFile.addEventListener("click", () => fileImageInput.click());
-
     if (fileImageInput) {
         fileImageInput.addEventListener("change", async () => {
             if (fileImageInput.files.length === 0) return;
@@ -166,8 +168,12 @@ if (isGuest === "1") {
                     stagedImageUrl = data.url;
                     if (lblPreviewName) lblPreviewName.innerText = file.name;
                     if (imgPreviewContainer) imgPreviewContainer.style.display = "flex";
-                } else { alert("Failed to host file attachment."); }
-            } catch (err) { alert("File upload dropped."); }
+                } else { 
+                    alert("Failed to host file attachment."); 
+                }
+            } catch (err) { 
+                alert("File upload dropped."); 
+            }
         });
     }
 
@@ -181,42 +187,42 @@ if (isGuest === "1") {
 
     // --- SOCKET MANAGEMENT ENGINE ---
     const chatSocket = new WebSocket(`${WS_BASE}/ws/chat/${userUid}`);
+    
+    // Call the typing controller initialization
     initTypingIndicator();
 
     // Keep the connection alive on the cloud server
-let heartbeatInterval;
+    let heartbeatInterval;
+    chatSocket.onopen = () => {
+        console.log("Secure channel connection established!");
+        // Send a tiny ping every 30 seconds to prevent Render from cutting the line
+        heartbeatInterval = setInterval(() => {
+            if (chatSocket.readyState === WebSocket.OPEN) {
+                chatSocket.send(JSON.stringify({ type: "ping" }));
+            }
+        }, 30000);
+    };
 
-socket.onopen = () => {
-    console.log("Secure channel connection established!");
-    
-    // Send a tiny ping every 30 seconds to prevent Render from cutting the line
-    heartbeatInterval = setInterval(() => {
-        if (socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: "ping" }));
-        }
-    }, 30000); 
-};
-
-socket.onclose = () => {
-    console.log("Connection lost.");
-    // Clear the interval if the socket closes normally
-    clearInterval(heartbeatInterval);
-};
+    chatSocket.onclose = () => {
+        console.log("Connection lost.");
+        clearInterval(heartbeatInterval);
+    };
 
     chatSocket.onmessage = (event) => {
         const payload = JSON.parse(event.data);
-        // 🔽 PASTE THIS EXACTLY HERE 🔽
-    if (data.type === "typing") {
-        const indicator = document.getElementById('typing-indicator');
-        if (indicator) {
-            if (data.status === true) {
-                indicator.innerText = `${data.sender} is typing...`;
-            } else {
-                indicator.innerText = "";
+        
+        // FIXED: Changed 'data' to 'payload' to accurately parse incoming packets without crashing
+        if (payload.type === "typing") {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) {
+                if (payload.status === true) {
+                    indicator.innerText = `${payload.sender} is typing...`;
+                } else {
+                    indicator.innerText = "";
+                }
             }
+            return; // Stops here so typing notifications do not render as chat blocks
         }
-        return; // Stops here so it doesn't try to build a blank message box
-    }
         
         if (activeChatType === "global" && !payload.recipient_uid) {
             displayMessage(payload.sender, payload.text, payload.image_url);
@@ -253,7 +259,7 @@ socket.onclose = () => {
         });
     }
 
-    // GLOBAL DISCONNECT CONTROLLER (Ensures it hooks up perfectly no matter what)
+    // GLOBAL DISCONNECT CONTROLLER
     const btnDisconnect = document.getElementById("btnDisconnect");
     if (btnDisconnect) {
         btnDisconnect.addEventListener("click", () => {
@@ -263,49 +269,40 @@ socket.onclose = () => {
     }
 
     loadFriendSidebar();
-});
 
-// --- DEBBUGGING TYPING INDICATOR ---
-function initTypingIndicator() {
-    console.log("Checkpoint 1: Typing indicator function initialized.");
-    
-    let typingTimeout;
-    const msgInputBox = document.getElementById('txtMessageInput'); 
+    // --- DEBBUGGING TYPING INDICATOR ---
+    function initTypingIndicator() {
+        console.log("Checkpoint 1: Typing indicator function initialized.");
+        let typingTimeout;
+        const msgInputBox = document.getElementById('txtMessageInput'); 
 
-    if (msgInputBox) {
-        msgInputBox.addEventListener('input', () => {
-            // Check if socket exists globally
-            if (typeof socket === 'undefined') {
-                console.log("Checkpoint 2 ERROR: 'socket' is completely undefined at this moment!");
-                return; 
-            }
-            if (!socket || socket.readyState !== WebSocket.OPEN) {
-                console.log("Checkpoint 2 NOTICE: Socket exists but is not completely OPEN yet.");
-                return;
-            }
+        if (msgInputBox) {
+            msgInputBox.addEventListener('input', () => {
+                // FIXED: Checking 'chatSocket' instead of undefined 'socket'
+                if (typeof chatSocket === 'undefined' || !chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
+                    return; 
+                }
 
-            console.log("Checkpoint 3: Socket is open! Sending typing notification...");
-            socket.send(JSON.stringify({
-                "type": "typing",
-                "status": true,
-                "sender_name": typeof myUsername !== 'undefined' ? myUsername : "Someone" 
-            }));
-
-            clearTimeout(typingTimeout);
-
-            typingTimeout = setTimeout(() => {
-                if (typeof socket === 'undefined' || !socket || socket.readyState !== WebSocket.OPEN) return;
-                
-                socket.send(JSON.stringify({
+                chatSocket.send(JSON.stringify({
                     "type": "typing",
-                    "status": false,
-                    "sender_name": typeof myUsername !== 'undefined' ? myUsername : "Someone"
+                    "status": true,
+                    "sender_name": typeof username !== 'undefined' ? username : "Someone" 
                 }));
-            }, 2000);
-        });
-    } else {
-        console.log("Checkpoint 2 ERROR: HTML input element 'txtMessageInput' was not found!");
-    }
-}
 
-initTypingIndicator();
+                clearTimeout(typingTimeout);
+
+                typingTimeout = setTimeout(() => {
+                    if (typeof chatSocket === 'undefined' || !chatSocket || chatSocket.readyState !== WebSocket.OPEN) return;
+                    
+                    chatSocket.send(JSON.stringify({
+                        "type": "typing",
+                        "status": false,
+                        "sender_name": typeof username !== 'undefined' ? username : "Someone"
+                    }));
+                }, 2000);
+            });
+        } else {
+            console.log("Checkpoint 2 ERROR: HTML input element 'txtMessageInput' was not found!");
+        }
+    }
+});
