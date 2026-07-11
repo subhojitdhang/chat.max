@@ -265,32 +265,39 @@ socket.onclose = () => {
 });
 
 // --- TYPING INDICATOR SENDING LOGIC ---
-let typingTimeout;
-const msgInputBox = document.getElementById('txtMessageInput'); 
+function initTypingIndicator() {
+    let typingTimeout;
+    const msgInputBox = document.getElementById('txtMessageInput'); 
 
-if (msgInputBox) {
-    msgInputBox.addEventListener('input', () => {
-        // 🔽 THIS SAFE CHECK STOPS THE "NOT DEFINED" ERROR 🔽
-        if (typeof socket === 'undefined' || !socket) return; 
+    if (msgInputBox) {
+        msgInputBox.addEventListener('input', () => {
+            // Check if socket is actually connected and open
+            if (typeof socket === 'undefined' || !socket || socket.readyState !== WebSocket.OPEN) {
+                return; 
+            }
 
-        // Send "typing" status to backend
-        socket.send(JSON.stringify({
-            "type": "typing",
-            "status": true,
-            "sender_name": typeof myUsername !== 'undefined' ? myUsername : "Someone" 
-        }));
-
-        clearTimeout(typingTimeout);
-
-        // Automatically stop typing after 2 seconds of stillness
-        typingTimeout = setTimeout(() => {
-            if (typeof socket === 'undefined' || !socket) return;
-            
             socket.send(JSON.stringify({
                 "type": "typing",
-                "status": false,
-                "sender_name": typeof myUsername !== 'undefined' ? myUsername : "Someone"
+                "status": true,
+                "sender_name": typeof myUsername !== 'undefined' ? myUsername : "Someone" 
             }));
-        }, 2000);
-    });
+
+            clearTimeout(typingTimeout);
+
+            typingTimeout = setTimeout(() => {
+                if (typeof socket === 'undefined' || !socket || socket.readyState !== WebSocket.OPEN) {
+                    return;
+                }
+                
+                socket.send(JSON.stringify({
+                    "type": "typing",
+                    "status": false,
+                    "sender_name": typeof myUsername !== 'undefined' ? myUsername : "Someone"
+                }));
+            }, 2000);
+        });
+    }
 }
+
+// Run the function safely
+initTypingIndicator();
