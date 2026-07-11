@@ -240,19 +240,27 @@ def get_friends(user_uid: str):
     conn.close()
     return [{"uid": r[0], "display_name": r[1]} for r in rows]
 
+import os
+
+# 1. Force the directory path to live safely inside the frontend structure
+UPLOAD_DIR = os.path.join("frontend", "uploads")
+
 @app.post("/api/upload")
 async def upload_image(file: UploadFile = File(...)):
-    # Extract extension securely
+    # 2. Automatically create the directory if Render wiped it out
+    if not os.path.exists(UPLOAD_DIR):
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+    # Securely extract extension
     ext = file.filename.split(".")[-1] if "." in file.filename else "png"
     file_id = f"{int(time.time())}_{random.randint(1000, 9999)}.{ext}"
     
-    # Ensure folder path layout matches mounting rules
     file_path = os.path.join(UPLOAD_DIR, file_id)
     
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
         
-    # Return the exact path mounted under static middleware
+    # Returns the exact web-accessible link matching your static setup
     return {"url": f"/static/uploads/{file_id}"}
 
 @app.get("/api/admin/users")
@@ -331,8 +339,8 @@ async def websocket_endpoint(websocket: WebSocket, user_uid: str):
             data = await websocket.receive_text()
             parsed_msg = json.loads(data)
             
-            if parsed_msg.get("type") == "ping":
-                continue
+            if parsed_msg.get("type") == "ping" and not parsed_msg.get("text"):
+               continue
             
             sender_name = parsed_msg.get('sender_name')
             text = parsed_msg.get('text')
