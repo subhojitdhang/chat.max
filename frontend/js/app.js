@@ -182,8 +182,40 @@ if (isGuest === "1") {
     // --- SOCKET MANAGEMENT ENGINE ---
     const chatSocket = new WebSocket(`${WS_BASE}/ws/chat/${userUid}`);
 
+    // Keep the connection alive on the cloud server
+let heartbeatInterval;
+
+socket.onopen = () => {
+    console.log("Secure channel connection established!");
+    
+    // Send a tiny ping every 30 seconds to prevent Render from cutting the line
+    heartbeatInterval = setInterval(() => {
+        if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: "ping" }));
+        }
+    }, 30000); 
+};
+
+socket.onclose = () => {
+    console.log("Connection lost.");
+    // Clear the interval if the socket closes normally
+    clearInterval(heartbeatInterval);
+};
+
     chatSocket.onmessage = (event) => {
         const payload = JSON.parse(event.data);
+        // 🔽 PASTE THIS EXACTLY HERE 🔽
+    if (data.type === "typing") {
+        const indicator = document.getElementById('typing-indicator');
+        if (indicator) {
+            if (data.status === true) {
+                indicator.innerText = `${data.sender} is typing...`;
+            } else {
+                indicator.innerText = "";
+            }
+        }
+        return; // Stops here so it doesn't try to build a blank message box
+    }
         
         if (activeChatType === "global" && !payload.recipient_uid) {
             displayMessage(payload.sender, payload.text, payload.image_url);
@@ -231,3 +263,29 @@ if (isGuest === "1") {
 
     loadFriendSidebar();
 });
+
+// --- TYPING INDICATOR SENDING LOGIC ---
+let typingTimeout;
+const msgInputBox = document.getElementById('txtMessageInput'); 
+
+if (msgInputBox) {
+    msgInputBox.addEventListener('input', () => {
+        // Send "typing" status to backend
+        socket.send(JSON.stringify({
+            "type": "typing",
+            "status": true,
+            "sender_name": typeof myUsername !== 'undefined' ? myUsername : "Someone" 
+        }));
+
+        clearTimeout(typingTimeout);
+
+        // Automatically stop typing after 2 seconds of stillness
+        typingTimeout = setTimeout(() => {
+            socket.send(JSON.stringify({
+                "type": "typing",
+                "status": false,
+                "sender_name": typeof myUsername !== 'undefined' ? myUsername : "Someone"
+            }));
+        }, 2000);
+    });
+}
