@@ -331,6 +331,9 @@ async def websocket_endpoint(websocket: WebSocket, user_uid: str):
             data = await websocket.receive_text()
             parsed_msg = json.loads(data)
             
+            if parsed_msg.get("type") == "ping":
+                continue
+            
             sender_name = parsed_msg.get('sender_name')
             text = parsed_msg.get('text')
             recipient_uid = parsed_msg.get('recipient_uid')
