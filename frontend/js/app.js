@@ -265,18 +265,26 @@ socket.onclose = () => {
     loadFriendSidebar();
 });
 
-// --- TYPING INDICATOR SENDING LOGIC ---
+// --- DEBBUGGING TYPING INDICATOR ---
 function initTypingIndicator() {
+    console.log("Checkpoint 1: Typing indicator function initialized.");
+    
     let typingTimeout;
     const msgInputBox = document.getElementById('txtMessageInput'); 
 
     if (msgInputBox) {
         msgInputBox.addEventListener('input', () => {
-            // Check if socket is actually connected and open
-            if (typeof socket === 'undefined' || !socket || socket.readyState !== WebSocket.OPEN) {
+            // Check if socket exists globally
+            if (typeof socket === 'undefined') {
+                console.log("Checkpoint 2 ERROR: 'socket' is completely undefined at this moment!");
                 return; 
             }
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                console.log("Checkpoint 2 NOTICE: Socket exists but is not completely OPEN yet.");
+                return;
+            }
 
+            console.log("Checkpoint 3: Socket is open! Sending typing notification...");
             socket.send(JSON.stringify({
                 "type": "typing",
                 "status": true,
@@ -286,9 +294,7 @@ function initTypingIndicator() {
             clearTimeout(typingTimeout);
 
             typingTimeout = setTimeout(() => {
-                if (typeof socket === 'undefined' || !socket || socket.readyState !== WebSocket.OPEN) {
-                    return;
-                }
+                if (typeof socket === 'undefined' || !socket || socket.readyState !== WebSocket.OPEN) return;
                 
                 socket.send(JSON.stringify({
                     "type": "typing",
@@ -297,8 +303,9 @@ function initTypingIndicator() {
                 }));
             }, 2000);
         });
+    } else {
+        console.log("Checkpoint 2 ERROR: HTML input element 'txtMessageInput' was not found!");
     }
 }
 
-// Run the function safely
 initTypingIndicator();
