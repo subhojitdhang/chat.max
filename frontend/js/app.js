@@ -181,6 +181,7 @@ if (isGuest === "1") {
 
     // --- SOCKET MANAGEMENT ENGINE ---
     const chatSocket = new WebSocket(`${WS_BASE}/ws/chat/${userUid}`);
+    initTypingIndicator();
 
     // Keep the connection alive on the cloud server
 let heartbeatInterval;
