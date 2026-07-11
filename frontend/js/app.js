@@ -270,6 +270,9 @@ const msgInputBox = document.getElementById('txtMessageInput');
 
 if (msgInputBox) {
     msgInputBox.addEventListener('input', () => {
+        // 🔽 THIS SAFE CHECK STOPS THE "NOT DEFINED" ERROR 🔽
+        if (typeof socket === 'undefined' || !socket) return; 
+
         // Send "typing" status to backend
         socket.send(JSON.stringify({
             "type": "typing",
@@ -281,6 +284,8 @@ if (msgInputBox) {
 
         // Automatically stop typing after 2 seconds of stillness
         typingTimeout = setTimeout(() => {
+            if (typeof socket === 'undefined' || !socket) return;
+            
             socket.send(JSON.stringify({
                 "type": "typing",
                 "status": false,
