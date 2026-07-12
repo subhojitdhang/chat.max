@@ -2,12 +2,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const API_BASE = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost" ? "http://127.0.0.1:8000" : window.location.origin;
     const WS_BASE = window.location.protocol === "https:" ? `wss://${window.location.host}` : `ws://${window.location.hostname}:8000`;
 
-    // Extract Session Credentials
-    const userUid = sessionStorage.getItem("user_uid");
-    const username = sessionStorage.getItem("user_name");
-    const displayProfileName = sessionStorage.getItem("user_display");
-    const isAdmin = sessionStorage.getItem("is_admin");
-    const isGuest = sessionStorage.getItem("is_guest");
+    // Extract Credentials (Checks localStorage first for "Stay Logged In", falls back to sessionStorage)
+    const userUid = localStorage.getItem("user_uid") || sessionStorage.getItem("user_uid");
+    const username = localStorage.getItem("user_name") || sessionStorage.getItem("user_name");
+    const displayProfileName = localStorage.getItem("user_display") || sessionStorage.getItem("user_display");
+    const isAdmin = localStorage.getItem("is_admin") || sessionStorage.getItem("is_admin");
+    const isGuest = localStorage.getItem("is_guest") || sessionStorage.getItem("is_guest");
 
     // Guard Gate Validation
     if (!userUid || !username) {
@@ -92,12 +92,10 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
 
         container.appendChild(toast);
-
         setTimeout(() => {
             toast.style.opacity = "1";
             toast.style.transform = "translateX(0)";
         }, 50);
-
         setTimeout(() => {
             toast.style.opacity = "0";
             toast.style.transform = "translateX(50px)";
@@ -115,7 +113,6 @@ document.addEventListener("DOMContentLoaded", () => {
         meta.className = "msg-meta";
         meta.innerText = sender;
         row.appendChild(meta);
-        
         if (text) {
             const body = document.createElement("div");
             body.className = "msg-body";
@@ -169,7 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (lblChatHeader) lblChatHeader.innerText = `💬 Direct: ${f.display_name}`;
                         if (chatScrollArea) chatScrollArea.innerHTML = ""; 
                     });
-
+                    
                     const deleteBtn = item.querySelector(".btn-delete-friend");
                     if (deleteBtn) {
                         deleteBtn.addEventListener("click", (event) => {
@@ -270,7 +267,7 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("Connection lost.");
         clearInterval(heartbeatInterval);
     };
-
+    
     chatSocket.onmessage = (event) => {
         const payload = JSON.parse(event.data);
         if (payload.type === "typing") {
@@ -332,10 +329,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // GLOBAL DISCONNECT CONTROLLER
+    // GLOBAL DISCONNECT CONTROLLER (Clears both scopes completely)
     const btnDisconnect = document.getElementById("btnDisconnect");
     if (btnDisconnect) {
         btnDisconnect.addEventListener("click", () => {
+            localStorage.clear();
             sessionStorage.clear();
             window.location.href = "/login";
         });
@@ -380,8 +378,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function deleteFriend(friendUid) {
-    const userUid = sessionStorage.getItem("user_uid");
-    
+    const userUid = localStorage.getItem("user_uid") || sessionStorage.getItem("user_uid");
     if (!confirm("Are you sure you want to remove this friend?")) {
         return;
     }
