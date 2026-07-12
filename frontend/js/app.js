@@ -59,9 +59,8 @@ document.addEventListener("DOMContentLoaded", () => {
         lnkAdminPanel.style.display = "block";
     }
 
-    // --- NEW: IN-APP TOAST NOTIFICATION ENGINE ---
+    // --- IN-APP TOAST NOTIFICATION ENGINE ---
     function showNotification(senderName, textMessage) {
-        // Create the notification container on the fly if it doesn't exist
         let container = document.getElementById("toast-container");
         if (!container) {
             container = document.createElement("div");
@@ -94,13 +93,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         container.appendChild(toast);
 
-        // Slide inside smoothly
         setTimeout(() => {
             toast.style.opacity = "1";
             toast.style.transform = "translateX(0)";
         }, 50);
 
-        // Auto remove after 4 seconds
         setTimeout(() => {
             toast.style.opacity = "0";
             toast.style.transform = "translateX(50px)";
@@ -288,21 +285,25 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
         
+        // Fix message visibility rules & track alerts accurately by sender name
         if (activeChatType === "global" && !payload.recipient_uid) {
             displayMessage(payload.sender, payload.text, payload.image_url);
-        } else if (activeChatType === "private" && payload.recipient_uid) {
+        } else if (payload.recipient_uid) {
+            // Private message handling logic
             if ((payload.sender_uid === userUid && payload.recipient_uid === activeTargetUid) ||
                 (payload.sender_uid === activeTargetUid && payload.recipient_uid === userUid)) {
                 displayMessage(payload.sender, payload.text, payload.image_url);
             } else {
-                // NEW NOTIFICATION SYSTEM: Triggers if you receive a PM but are not focused on their chat window
-                if (payload.sender_uid !== userUid) {
+                // If a PM comes in from someone else, notify without hiding it permanently
+                if (payload.sender !== username) {
                     showNotification(payload.sender, payload.text);
                 }
             }
         } else if (activeChatType !== "global" && !payload.recipient_uid) {
-            // Trigger a notification if a public message arrives while you are looking at a private conversation
-            showNotification(`${payload.sender} (Global)`, payload.text);
+            // Global message alert when user is inside a PM room
+            if (payload.sender !== username) {
+                showNotification(`${payload.sender} (Global)`, payload.text);
+            }
         }
     };
 
@@ -378,9 +379,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-// FIXED: Placed deleteFriend smoothly outside DOMContentLoaded safely
 async function deleteFriend(friendUid) {
-    const userUid = sessionStorage.getItem("user_uid") || localStorage.getItem("userUid");
+    const userUid = sessionStorage.getItem("user_uid");
     
     if (!confirm("Are you sure you want to remove this friend?")) {
         return;
@@ -401,7 +401,7 @@ async function deleteFriend(friendUid) {
 
         if (response.ok) {
             alert(result.message);
-            window.location.reload(); // Instantly clears the screen layout safely without errors
+            window.location.reload();
         } else {
             alert("Error: " + result.detail);
         }
