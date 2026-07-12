@@ -110,6 +110,10 @@ class InviteRequest(BaseModel):
     code: str
     uses: int
 
+class DeleteFriendRequest(BaseModel):
+    user_uid: str
+    friend_uid: str
+
 # --- API ENDPOINTS ---
 
 @app.post("/api/signup")
@@ -225,6 +229,25 @@ def add_friend(data: FriendRequest):
         
     conn.close()
     return {"message": f"Successfully added {friend_name}!"}
+
+@app.delete("/api/friends/delete")
+def delete_friend(data: DeleteFriendRequest):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    try:
+        # Delete the friendship row in both directions
+        cursor.execute(
+            "DELETE FROM friends WHERE (user_uid = ? AND friend_uid = ?) OR (user_uid = ? AND friend_uid = ?)",
+            (data.user_uid, data.friend_uid, data.friend_uid, data.user_uid)
+        )
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        
+    conn.close()
+    return {"message": "Friend removed successfully!"}
 
 @app.get("/api/friends/{user_uid}")
 def get_friends(user_uid: str):

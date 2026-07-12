@@ -99,18 +99,39 @@ document.addEventListener("DOMContentLoaded", () => {
                 friends.forEach(f => {
                     const item = document.createElement("div");
                     item.className = "channel-item";
+                    
+                    item.style.display = "flex";
+                    item.style.justifyContent = "space-between";
+                    item.style.alignItems = "center";
+                    
                     if (activeTargetUid === f.uid) item.className += " active";
                     
-                    item.innerHTML = `<span>👤 ${f.display_name}</span> <span class="uid-badge">${f.uid}</span>`;
+                    item.innerHTML = `
+                        <div>
+                            <span>👤 ${f.display_name}</span> 
+                            <span class="uid-badge">${f.uid}</span>
+                        </div>
+                        <button class="btn-delete-friend" style="background: none; border: none; color: #ff4d4d; cursor: pointer; font-size: 14px; padding: 4px 8px;">❌</button>
+                    `;
+                    
                     item.addEventListener("click", () => {
                         document.querySelectorAll(".channel-item").forEach(c => c.classList.remove("active"));
                         item.classList.add("active");
-     
+         
                         activeChatType = "private";
                         activeTargetUid = f.uid;
                         if (lblChatHeader) lblChatHeader.innerText = `💬 Direct: ${f.display_name}`;
                         if (chatScrollArea) chatScrollArea.innerHTML = ""; 
                     });
+
+                    const deleteBtn = item.querySelector(".btn-delete-friend");
+                    if (deleteBtn) {
+                        deleteBtn.addEventListener("click", (event) => {
+                            event.stopPropagation();
+                            deleteFriend(f.uid);
+                        });
+                    }
+                    
                     friendContainer.appendChild(item);
                 });
             }
@@ -306,3 +327,38 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 });
+
+async function deleteFriend(friendUid) {
+    const userUid = localStorage.getItem("userUid"); // This retrieves your logged-in UID
+    
+    if (!confirm("Are you sure you want to remove this friend?")) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/api/friends/delete`, {
+            method: "DELETE",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                user_uid: userUid,
+                friend_uid: friendUid
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert(result.message);
+            // This reloads your sidebar so the friend disappears instantly
+            if (typeof loadFriendSidebar === "function") {
+                loadFriendSidebar();
+            }
+        } else {
+            alert("Error: " + result.detail);
+        }
+    } catch (error) {
+        console.error("Failed to delete friend:", error);
+    }
+}
