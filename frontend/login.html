@@ -121,43 +121,40 @@
         });
 
         // 2. Verify OTP and Complete Login
-        document.getElementById("verifyOtpForm").addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const email = document.getElementById("loginEmail").value.trim();
-            const otpCode = document.getElementById("otpCode").value.trim();
+document.getElementById("verifyOtpForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("loginEmail").value.trim();
+    const otpCode = document.getElementById("otpCode").value.trim();
 
-            try {
-                const res = await fetch(`${API_BASE}/api/login/verify-otp`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email, otp_code: otpCode })
-                });
-                const data = await res.json();
-
-                if (res.ok) {
-                    // Clear out old temporary sessions first
-                    sessionStorage.clear();
-
-                    // Save values permanently to localStorage for the Stay Logged In feature
-                    localStorage.setItem("user_uid", data.user.uid);
-                    localStorage.setItem("user_name", data.user.username);
-                    localStorage.setItem("user_display", data.user.display_name);
-                    localStorage.setItem("user_email", data.user.email);
-                    localStorage.setItem("is_admin", data.user.is_admin);
-                    localStorage.setItem("is_guest", "0");
-                    
-                    if (data.user.is_admin === 1) {
-                        window.location.href = "/admin";
-                    } else {
-                        window.location.href = "/";
-                    }
-                } else {
-                    alert(data.detail);
-                }
-            } catch (err) {
-                alert("Verification request failed.");
-            }
+    try {
+        const res = await fetch(`${API_BASE}/api/login/verify-otp`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, otp_code: otpCode })
         });
+        const data = await res.json();
+
+        if (res.ok) {
+            // Clear out old temporary sessions first
+            sessionStorage.clear();
+
+            // Save values permanently to localStorage for the Stay Logged In feature
+            localStorage.setItem("user_uid", data.user.uid);
+            localStorage.setItem("user_name", data.user.username);
+            localStorage.setItem("user_display", data.user.display_name);
+            localStorage.setItem("user_email", data.user.email);
+            localStorage.setItem("is_admin", data.user.is_admin);
+            localStorage.setItem("is_guest", "0");
+            
+            // FORCE ROUTE TO MAIN CHAT CORE (Bypasses the broken /admin route)
+            window.location.href = "/";
+        } else {
+            alert(data.detail);
+        }
+    } catch (err) {
+        alert("Verification request failed.");
+    }
+});
 
         // 3. Guest Entry Flow
         document.getElementById("guestLoginForm").addEventListener("submit", (e) => {
