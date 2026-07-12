@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnGlobalRoom = document.getElementById("btnGlobalRoom");
     const frmTransmitter = document.getElementById("frmTransmitter");
     const txtMessageInput = document.getElementById("txtMessageInput");
-
+    
     // File inputs
     const fileImageInput = document.getElementById("fileImageInput");
     const btnTriggerFile = document.getElementById("btnTriggerFile");
@@ -59,6 +59,55 @@ document.addEventListener("DOMContentLoaded", () => {
         lnkAdminPanel.style.display = "block";
     }
 
+    // --- NEW: IN-APP TOAST NOTIFICATION ENGINE ---
+    function showNotification(senderName, textMessage) {
+        // Create the notification container on the fly if it doesn't exist
+        let container = document.getElementById("toast-container");
+        if (!container) {
+            container = document.createElement("div");
+            container.id = "toast-container";
+            container.style.position = "fixed";
+            container.style.top = "20px";
+            container.style.right = "20px";
+            container.style.zIndex = "9999";
+            document.body.appendChild(container);
+        }
+
+        const toast = document.createElement("div");
+        toast.style.background = "#2c2f33";
+        toast.style.color = "#ffffff";
+        toast.style.padding = "12px 20px";
+        toast.style.marginBottom = "10px";
+        toast.style.borderRadius = "8px";
+        toast.style.boxShadow = "0 4px 15px rgba(0,0,0,0.3)";
+        toast.style.borderLeft = "4px solid #7289da";
+        toast.style.fontFamily = "sans-serif";
+        toast.style.minWidth = "200px";
+        toast.style.transition = "all 0.3s ease";
+        toast.style.opacity = "0";
+        toast.style.transform = "translateX(50px)";
+
+        toast.innerHTML = `
+            <div style="font-weight: bold; font-size: 13px; color: #7289da; margin-bottom: 3px;">💬 New Message</div>
+            <div style="font-size: 14px;"><strong style="color: #fff;">${senderName}:</strong> ${textMessage || "Sent an image"}</div>
+        `;
+
+        container.appendChild(toast);
+
+        // Slide inside smoothly
+        setTimeout(() => {
+            toast.style.opacity = "1";
+            toast.style.transform = "translateX(0)";
+        }, 50);
+
+        // Auto remove after 4 seconds
+        setTimeout(() => {
+            toast.style.opacity = "0";
+            toast.style.transform = "translateX(50px)";
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
+
     // --- RENDER MESSAGE BUBBLE VIA LIVE FEED ---
     function displayMessage(sender, text, imageUrl = null) {
         if (!chatScrollArea) return;
@@ -69,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
         meta.className = "msg-meta";
         meta.innerText = sender;
         row.appendChild(meta);
-
+        
         if (text) {
             const body = document.createElement("div");
             body.className = "msg-body";
@@ -105,7 +154,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     item.style.alignItems = "center";
                     
                     if (activeTargetUid === f.uid) item.className += " active";
-                    
+                 
                     item.innerHTML = `
                         <div>
                             <span>👤 ${f.display_name}</span> 
@@ -113,7 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         </div>
                         <button class="btn-delete-friend" style="background: none; border: none; color: #ff4d4d; cursor: pointer; font-size: 14px; padding: 4px 8px;">❌</button>
                     `;
-                    
+          
                     item.addEventListener("click", () => {
                         document.querySelectorAll(".channel-item").forEach(c => c.classList.remove("active"));
                         item.classList.add("active");
@@ -208,15 +257,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- SOCKET MANAGEMENT ENGINE ---
     const chatSocket = new WebSocket(`${WS_BASE}/ws/chat/${userUid}`);
-    
-    // Call the typing controller initialization
     initTypingIndicator();
-
-    // Keep the connection alive on the cloud server
     let heartbeatInterval;
+
     chatSocket.onopen = () => {
         console.log("Secure channel connection established!");
-        // Send a tiny ping every 30 seconds to prevent Render from cutting the line
         heartbeatInterval = setInterval(() => {
             if (chatSocket.readyState === WebSocket.OPEN) {
                 chatSocket.send(JSON.stringify({ type: "ping" }));
@@ -231,8 +276,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     chatSocket.onmessage = (event) => {
         const payload = JSON.parse(event.data);
-        
-        // FIXED: Changed 'data' to 'payload' to accurately parse incoming packets without crashing
         if (payload.type === "typing") {
             const indicator = document.getElementById('typing-indicator');
             if (indicator) {
@@ -242,7 +285,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     indicator.innerText = "";
                 }
             }
-            return; // Stops here so typing notifications do not render as chat blocks
+            return;
         }
         
         if (activeChatType === "global" && !payload.recipient_uid) {
@@ -251,7 +294,15 @@ document.addEventListener("DOMContentLoaded", () => {
             if ((payload.sender_uid === userUid && payload.recipient_uid === activeTargetUid) ||
                 (payload.sender_uid === activeTargetUid && payload.recipient_uid === userUid)) {
                 displayMessage(payload.sender, payload.text, payload.image_url);
+            } else {
+                // NEW NOTIFICATION SYSTEM: Triggers if you receive a PM but are not focused on their chat window
+                if (payload.sender_uid !== userUid) {
+                    showNotification(payload.sender, payload.text);
+                }
             }
+        } else if (activeChatType !== "global" && !payload.recipient_uid) {
+            // Trigger a notification if a public message arrives while you are looking at a private conversation
+            showNotification(`${payload.sender} (Global)`, payload.text);
         }
     };
 
@@ -299,7 +350,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (msgInputBox) {
             msgInputBox.addEventListener('input', () => {
-                // FIXED: Checking 'chatSocket' instead of undefined 'socket'
                 if (typeof chatSocket === 'undefined' || !chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
                     return; 
                 }
@@ -328,15 +378,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
+// FIXED: Placed deleteFriend smoothly outside DOMContentLoaded safely
 async function deleteFriend(friendUid) {
-    const userUid = localStorage.getItem("userUid"); // This retrieves your logged-in UID
+    const userUid = sessionStorage.getItem("user_uid") || localStorage.getItem("userUid");
     
     if (!confirm("Are you sure you want to remove this friend?")) {
         return;
     }
 
     try {
-        const response = await fetch(`${API_BASE}/api/friends/delete`, {
+        const response = await fetch(`${window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost" ? "http://127.0.0.1:8000" : window.location.origin}/api/friends/delete`, {
             method: "DELETE",
             headers: {
                 "Content-Type": "application/json"
@@ -346,15 +397,11 @@ async function deleteFriend(friendUid) {
                 friend_uid: friendUid
             })
         });
-
         const result = await response.json();
 
         if (response.ok) {
             alert(result.message);
-            // This reloads your sidebar so the friend disappears instantly
-            if (typeof loadFriendSidebar === "function") {
-                loadFriendSidebar();
-            }
+            window.location.reload(); // Instantly clears the screen layout safely without errors
         } else {
             alert("Error: " + result.detail);
         }
