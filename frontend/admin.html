@@ -40,7 +40,7 @@
     <div class="admin-container">
         <div class="header">
             <h1>System Administrator Dashboard</h1>
-            <a href="/index.html" class="back-btn">← Back to Workspace</a>
+            <a href="/" class="back-btn">← Back to Workspace</a>
         </div>
         
         <div class="grid">
@@ -69,13 +69,14 @@
     <script>
         const API_BASE = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost" ? "http://127.0.0.1:8000" : window.location.origin;
         
-        const adminEmail = sessionStorage.getItem("user_email");
-        const isAdmin = sessionStorage.getItem("is_admin");
+        // Extract credentials from localStorage (permanent storage cache) first, fall back to sessionStorage
+        const adminEmail = localStorage.getItem("user_email") || sessionStorage.getItem("user_email");
+        const isAdmin = localStorage.getItem("is_admin") || sessionStorage.getItem("is_admin");
 
-        // Kick out non-admins immediately
-        if (!adminEmail || isAdmin !== "1") {
+        // Kick out non-admins immediately (handles string "1" or numeric value 1 safely)
+        if (!adminEmail || (isAdmin !== "1" && isAdmin != 1)) {
             alert("Access Denied: Administrative signatures missing.");
-            window.location.href = "index.html";
+            window.location.href = "/";
         }
 
         // Fetch User base
